@@ -1,0 +1,40 @@
+engine.name=$envVars["MASTER_ENGINE"]-$envVars["MASTER_ID"]
+group.id=$envVars["MASTER_GROUP"]
+external.id=000
+sync.url=http://localhost:31415/sync/$envVars["MASTER_ENGINE"]-$envVars["MASTER_ID"]
+registration.url=
+
+# NOTE: the DB connection details will be replaced by the start script
+
+db.url=$envVars["MASTER_JDBC"]
+db.user=$envVars["MASTER_USER"]
+db.password=$envVars["MASTER_PASSWORD"]
+db.driver=$envVars["MASTER_JDBC_DRIVER"]
+
+job.purge.period.time.ms=$envVars["JOB_PURGE_PERIOD_TIME_MS"]
+job.routing.period.time.ms=$envVars["JOB_ROUTING_PERIOD_TIME_MS"]
+job.push.period.time.ms=$envVars["JOB_PUSH_PERIOD_TIME_MS"]
+job.pull.period.time.ms=$envVars["JOB_PULL_PERIOD_TIME_MS"]
+
+# Initial load is the process of syncing the data into an empty database
+# http://www.symmetricds.org/doc/3.7/html/user-guide.html#_initial_loads
+
+# create the tables, if they are missing
+initial.load.create.first=true
+auto.registration=true
+auto.reload=true
+
+# By default, all data for a given table will be initial loaded in a
+# single batch, regardless of the max batch size parameter on the
+# reload channel. That is, for a table with one million rows, all rows
+# for that table will be initial loaded and sent to the destination
+# node in a single batch. For large tables, this can result in a batch
+# that can take a long time to extract and load.
+#
+# Initial loads for a table can be broken into multiple batches by
+# setting initial.load.use.extract.job.enabled to true.
+#
+# To tell SymmetricDS the number of batches to create for a given
+# table, specify a positive integer in the initial_load_batch_count
+# column on Table Routing.
+initial.load.use.extract.job.enabled=true

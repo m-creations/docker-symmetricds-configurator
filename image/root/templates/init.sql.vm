@@ -1,0 +1,73 @@
+#set ( $masterEngine = $envVars["MASTER_ENGINE"] )
+#set ( $slaveEngine = $envVars["SLAVE_ENGINE"] )
+#set ( $masterId = $envVars["MASTER_ID"] )
+#set ( $slaveId = $envVars["SLAVE_ID"] )
+#set ( $masterSlaveRouter = $envVars["MASTER_SLAVE_ROUTER"] )
+#set ( $slaveMasterRouter = $envVars["SLAVE_MASTER_ROUTER"] )
+#set ( $processing_order = 0 )
+#set ( $max_batch_size = 0 )
+#set ( $initial_batch_size =0 )
+#set ( $processing_order = $processing_order.parseInt($envVars["PROCESSING_ORDER"]) )
+#set ( $max_batch_size = $max_batch_size.parseInt($envVars["MAX_BATCH_SIZE"]) )
+#set ( $initial_batch_size = $initial_batch_size.parseInt($envVars["INITIAL_BATCH_SIZE"]) )
+
+delete from sym_trigger_router;
+delete from sym_trigger;
+delete from sym_router;
+delete from sym_node_group_link;
+delete from sym_node_group;
+delete from sym_node_host;
+delete from sym_node_identity;
+delete from sym_node_security;
+delete from sym_node;
+
+insert into sym_node_group (node_group_id) values ('${masterEngine}');
+insert into sym_node_group (node_group_id) values ('${slaveEngine}');
+
+insert into sym_node_group_link (source_node_group_id, target_node_group_id, data_event_action) values ('${masterEngine}', '${slaveEngine}', 'W');
+insert into sym_node_group_link (source_node_group_id, target_node_group_id, data_event_action) values ('${slaveEngine}', '${masterEngine}', 'P');
+
+insert into sym_router
+(router_id,source_node_group_id,target_node_group_id,router_type,create_time,last_update_time)
+values('${masterSlaveRouter}', '${masterEngine}', '${slaveEngine}', 'default',current_timestamp, current_timestamp);
+
+insert into sym_router
+(router_id,source_node_group_id,target_node_group_id,router_type,create_time,last_update_time)
+values('${slaveSlaveRouter}', '${slaveEngine}', '${masterEngine}', 'default',current_timestamp, current_timestamp);
+
+
+insert into sym_node (node_id,node_group_id,external_id,sync_enabled,sync_url,schema_version,symmetric_version,database_type,database_version,heartbeat_time,timezone_offset,batch_to_send_count,batch_in_error_count,created_at_node_id)
+ values ('${masterId}','${slaveEngine}','${masterId}',1,null,null,null,null,null,current_timestamp,null,0,0,'${masterId}');
+insert into sym_node (node_id,node_group_id,external_id,sync_enabled,sync_url,schema_version,symmetric_version,database_type,database_version,heartbeat_time,timezone_offset,batch_to_send_count,batch_in_error_count,created_at_node_id)
+ values ('${slaveId}','${slaveEngine}','${slaveId}',1,null,null,null,null,null,current_timestamp,null,0,0,'${masterId}');
+
+insert into sym_node_security (node_id,node_password,registration_enabled,registration_time,initial_load_enabled,initial_load_time,created_at_node_id)
+ values ('${masterId}','5d1c92bbacbe2edb9e1ca5dbb0e481',0,current_timestamp,0,current_timestamp,'${masterId}');
+insert into sym_node_security (node_id,node_password,registration_enabled,registration_time,initial_load_enabled,initial_load_time,created_at_node_id)
+ values ('${slaveId}','5d1c92bbacbe2edb9e1ca5dbb0e481',1,null,1,null,'${masterId}');
+
+insert into sym_node_identity values ('${masterId}');
+
+delete from sym_channel where channel_id in (${quotedTableNamesCVS});
+
+#foreach( $table in $tables )
+#set ( $processing_order = $processing_order + 3 )
+-----------------------------------------------------------------------------------------
+-- Table $table replication
+-----------------------------------------------------------------------------------------
+insert into sym_channel(channel_id, processing_order, max_batch_size, enabled, description) values('${table}', ${processing_order} , ${max_batch_size}, 1, '');
+
+insert into sym_trigger (trigger_id,source_table_name,channel_id,last_update_time,create_time) values('${table}','${table}','${table}',current_timestamp,current_timestamp);
+
+insert into sym_trigger_router (trigger_id,router_id,initial_load_order, initial_load_batch_count, last_update_time,create_time) values('${table}','${masterSlaveRouter}', ${processing_order}, ${initial_batch_size}, current_timestamp, current_timestamp);
+
+#end
+
+--
+-- now adjust some channels/trigger_routers to be processed earlier than the default 100
+--
+
+-- update sym_channel set processing_order = 90 where channel_id = 'dicman_node';
+-- update sym_trigger_router set initial_load_order = 90 where trigger_id = 'dicman_node';
+
+

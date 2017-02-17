@@ -1,0 +1,4 @@
+{
+ "project_id" : "docker-symmetricds-replicator",
+ "conduit_uri" : "https://phab.m-creations.net/"
+}
