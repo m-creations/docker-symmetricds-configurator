@@ -2,7 +2,7 @@ engine.name=$envVars["SLAVE_ENGINE"]
 group.id=$envVars["SLAVE_GROUP"]
 external.id=$envVars["SLAVE_ID"]
 
-registration.url=http://localhost:31415/sync/$envVars["MASTER_ENGINE"]-$envVars["MASTER_ID"]
+registration.url=http://$envVars["HOSTNAME"]:31415/sync/$envVars["MASTER_ENGINE"]-$envVars["MASTER_ID"]
 
 # NOTE: the DB connection details will be replaced by the start script
 
