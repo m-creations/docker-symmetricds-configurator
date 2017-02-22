@@ -98,7 +98,7 @@ fi
 
 parse_jdbc_url $SLAVE_JDBC SLAVE_HOST SLAVE_PORT SLAVE_DBNAME
 
-slave_properties=/data/engines/${SLAVE_ENGINE}-${SLAVE_ID}.properties
+slave_properties=/data/engines/master-000.properties
 # replace all / with \/
 #sed -ie "s/db.url=.*/db.url=${SLAVE_JDBC//\//\\\/}/" $slave_properties
 #sed -ie "s/db.user=.*/db.user=${SLAVE_USER}/" $slave_properties
@@ -140,13 +140,13 @@ if [ $? == 0 ] ; then
     printf "Database $MASTER_DBNAME contains the SymmetricDS tables. Very good.\n"
 else
     printf "Database $MASTER_DBNAME doesn't have the SymmetricDS tables. I will add them ... "
-    symadmin --engine master-000 create-sym-tables
+    symadmin --engine ${MASTER_ENGINE}-${MASTER_ID} create-sym-tables
     printf "done.\n\n"
 fi
 
 if [ -z "$node_groups" ] ; then
     printf "Database $MASTER_DBNAME doesn't contain our sync configuration. I will import it from init.sql ... "
-    dbimport --engine master-000 $INIT_SQL_PATH
+    dbimport --engine ${MASTER_ENGINE}-${MASTER_ID} $INIT_SQL_PATH
 fi
 
 # create the slave DB if not present and import a dump of the schema of master
@@ -181,8 +181,3 @@ exec sym
 sym_pid=$!
 
 wait
-
-
-
-
-
