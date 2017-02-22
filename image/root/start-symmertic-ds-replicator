@@ -177,7 +177,7 @@ set -e
 
 echo "Starting SymmetricDS ..."
 # start SymmetricDS and remember its PID
-exec sym
+exec ${SYMMETRICDS_HOME}/bin/sym
 sym_pid=$!
 
 wait
