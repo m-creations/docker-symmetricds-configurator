@@ -20,9 +20,9 @@ job.pull.period.time.ms=$envVars["JOB_PULL_PERIOD_TIME_MS"]
 # http://www.symmetricds.org/doc/3.7/html/user-guide.html#_initial_loads
 
 # create the tables, if they are missing
-initial.load.create.first=true
-auto.registration=true
-auto.reload=true
+initial.load.create.first=$envVars["INITIAL_LOAD_CREATE_FIRST"]
+auto.registration=$envVars["AUTO_REGISTRATION"]
+auto.reload=$envVars["AUTO_RELOAD"]
 
 # By default, all data for a given table will be initial loaded in a
 # single batch, regardless of the max batch size parameter on the
