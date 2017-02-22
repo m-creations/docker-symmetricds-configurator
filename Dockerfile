@@ -1,4 +1,4 @@
-FROM mcreations/symmetricds:latest
+FROM mcreations/symmetricds:3.8.16
 
 MAINTAINER Reza Rahimi <rahimi@m-creations.net>
 MAINTAINER Yousef Irman <irman@m-creations.net>
