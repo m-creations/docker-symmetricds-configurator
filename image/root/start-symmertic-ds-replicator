@@ -75,11 +75,6 @@ fi
 parse_jdbc_url $MASTER_JDBC MASTER_HOST MASTER_PORT MASTER_DBNAME
 
 master_properties=/data/engines/${MASTER_ENGINE}-${MASTER_ID}.properties
-# replace all / with \/
-#sed -ie "s/db.url=.*/db.url=${MASTER_JDBC//\//\\\/}/" $master_properties
-#sed -ie "s/db.user=.*/db.user=${MASTER_USER}/" $master_properties
-#sed -ie "s/db.password=.*/db.password=${MASTER_PASSWORD}/" $master_properties
-#sed -ie "s/db.driver=.*/db.driver=${MASTER_JDBC_DRIVER}/" $master_properties
 
 check_env_var SLAVE_JDBC "You MUST define the JDBC URL of the slave DB with -e SLAVE_JDBC=jdbc:mysql://..."
 check_env_var SLAVE_USER "You MUST define the user name of the slave DB with '-e SLAVE_USER=scott'.\n\nThe user needs permissions to create tables/triggers/procedures."
@@ -98,12 +93,7 @@ fi
 
 parse_jdbc_url $SLAVE_JDBC SLAVE_HOST SLAVE_PORT SLAVE_DBNAME
 
-slave_properties=/data/engines/master-000.properties
-# replace all / with \/
-#sed -ie "s/db.url=.*/db.url=${SLAVE_JDBC//\//\\\/}/" $slave_properties
-#sed -ie "s/db.user=.*/db.user=${SLAVE_USER}/" $slave_properties
-#sed -ie "s/db.password=.*/db.password=${SLAVE_PASSWORD}/" $slave_properties
-#sed -ie "s/db.driver=.*/db.driver=${SLAVE_JDBC_DRIVER}/" $slave_properties
+slave_properties=/data/engines/${SLAVE_ENGINE}-${SLAVE_ID}.properties
 
 INIT_SQL_PATH=/data/tmp/init.sql
 
@@ -111,7 +101,7 @@ $JAVA_HOME/bin/java -Dfile.encoding=UTF-8 \
     -jar ${SYMMETRICDS_FOLDER}/${SYMMETRICDS_CONFIGURATOR_ARTIFACT} \
     -s /templates/ -f .*.vm -d /tmp/ -u $MASTER_JDBC -n $MASTER_USER -p $MASTER_PASSWORD
 
-mv -f /tmp/master-000.properties $master_properties
+cp -f /tmp/master-000.properties $master_properties
 mv -f /tmp/slave-001.properties $slave_properties
 mv -f /tmp/init.sql $INIT_SQL_PATH
 
@@ -135,18 +125,23 @@ else
 fi
 
 # verify the existence of the Symmetric tables in the master DB
-node_groups=$(execute_master "select node_group_id from $MASTER_DBNAME.sym_node_group")
-if [ $? == 0 ] ; then
+#node_groups=$(execute_master "select node_group_id from $MASTER_DBNAME.sym_node_group")
+SYM_TABLES_COUNT=$(execute_master "SELECT count(table_name) FROM  information_schema.tables WHERE table_schema = '${MASTER_DBNAME}' and table_name like 'sym%'")
+echo "Number of SymmetricDS tables in schema "
+if [ "$SYM_TABLES_COUNT" == "46" ] ; then
     printf "Database $MASTER_DBNAME contains the SymmetricDS tables. Very good.\n"
 else
     printf "Database $MASTER_DBNAME doesn't have the SymmetricDS tables. I will add them ... "
-    symadmin --engine ${MASTER_ENGINE}-${MASTER_ID} create-sym-tables
+    ${SYMMETRICDS_HOME}/bin/symadmin --engine ${MASTER_ENGINE}-${MASTER_ID} create-sym-tables
     printf "done.\n\n"
 fi
 
+node_groups=$(execute_master "select source_node_group_id from $MASTER_DBNAME.sym_node_group_link")
 if [ -z "$node_groups" ] ; then
-    printf "Database $MASTER_DBNAME doesn't contain our sync configuration. I will import it from init.sql ... "
-    dbimport --engine ${MASTER_ENGINE}-${MASTER_ID} $INIT_SQL_PATH
+    printf "Database $MASTER_DBNAME doesn't contain our sync configuration. I will import it from $INIT_SQL_PATH ... \n\n"
+    ${SYMMETRICDS_HOME}/bin/dbimport --engine ${MASTER_ENGINE}-${MASTER_ID} $INIT_SQL_PATH
+else
+    printf "Database $MASTER_DBNAME contains our sync configuration, so $INIT_SQL_PATH has not imported ... \n\n"
 fi
 
 # create the slave DB if not present and import a dump of the schema of master
@@ -157,19 +152,20 @@ else
     execute_slave "create database $SLAVE_DBNAME"
     printf "done.\n\n"
     printf "I will dump the schema of the master DB ... "
-    mysqldump --host=$MASTER_HOST --port=$MASTER_PORT --user=$MASTER_USER --password=$MASTER_PASSWORD --no-data --skip-triggers --skip-lock-tables $MASTER_DBNAME > /data/tmp/master_schema.sql
+    MASTER_DUMP_SQL=/data/tmp/master_schema.sql
+    IGNORE_TABLES=$(execute_master "SET group_concat_max_len = 100000;SELECT GROUP_CONCAT(Concat(' --ignore-table=${MASTER_DBNAME}.', table_Name) separator ' ') from information_schema.tables WHERE table_schema = '${MASTER_DBNAME}' and table_name like 'sym%' group by table_schema")
+    mysqldump --host=$MASTER_HOST --port=$MASTER_PORT --user=$MASTER_USER --password=$MASTER_PASSWORD \
+            --no-data --skip-triggers --skip-lock-tables \
+            $IGNORE_TABLES $MASTER_DBNAME > $MASTER_DUMP_SQL
     printf "and import it in the slave DB ... "
-    cat /data/tmp/master_schema.sql | mysql --host=$SLAVE_HOST --port=$SLAVE_PORT --user=$SLAVE_USER --password=$SLAVE_PASSWORD --database $SLAVE_DBNAME
-    printf "finally remove the symmetric tables ..."
-    execute_slave "set global foreign_key_checks=0" -D $SLAVE_DBNAME
-    for t in $(execute_slave "select table_name from information_schema.tables where table_schema = 'master' and table_name like 'sym_%'") ; do
-        execute_slave "drop table $t" -D $SLAVE_DBNAME
-    done
-    execute_slave "set global foreign_key_checks=1" -D $SLAVE_DBNAME
-    # the self-reference in dic_node prevents correct loading
-    execute_slave "alter table dic_node drop foreign key dic_node_ibfk_1" -D horreum
-    execute_slave "alter table dicman_node drop foreign key dicman_node_ibfk_1" -D horreum
-    printf "done\n\n"
+    cat $MASTER_DUMP_SQL | mysql --host=$SLAVE_HOST --port=$SLAVE_PORT --user=$SLAVE_USER --password=$SLAVE_PASSWORD --database $SLAVE_DBNAME
+    #printf "finally remove the symmetric tables ..."
+    #execute_slave "set global foreign_key_checks=0" -D $SLAVE_DBNAME
+    #for t in $(execute_slave "select table_name from information_schema.tables where table_schema = '${SLAVE_DBNAME}' and table_name like 'sym_%'") ; do
+    #    execute_slave "drop table $t" -D $SLAVE_DBNAME
+    #done
+    #execute_slave "set global foreign_key_checks=1" -D $SLAVE_DBNAME
+    #printf "done\n\n"
 fi
 
 # turn on error checking again

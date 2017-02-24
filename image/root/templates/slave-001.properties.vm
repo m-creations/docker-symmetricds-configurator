@@ -1,5 +1,5 @@
 engine.name=$envVars["SLAVE_ENGINE"]
-group.id=$envVars["SLAVE_GROUP"]
+group.id=$envVars["SLAVE_GROUP_ID"]
 external.id=$envVars["SLAVE_ID"]
 
 registration.url=http://$envVars["HOSTNAME"]:31415/sync/$envVars["MASTER_ENGINE"]-$envVars["MASTER_ID"]

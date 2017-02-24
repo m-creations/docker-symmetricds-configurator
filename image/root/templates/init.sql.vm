@@ -1,8 +1,8 @@
 #set ( $masterEngine = $envVars["MASTER_ENGINE"] )
-#set ( $masterGroup = $envVars["MASTER_GROUP"] )
+#set ( $masterGroup = $envVars["MASTER_GROUP_ID"] )
 #set ( $masterId = $envVars["MASTER_ID"] )
 #set ( $slaveEngine = $envVars["SLAVE_ENGINE"] )
-#set ( $slaveGroup = $envVars["SLAVE_GROUP"] )
+#set ( $slaveGroup = $envVars["SLAVE_GROUP_ID"] )
 #set ( $slaveId = $envVars["SLAVE_ID"] )
 #set ( $masterSlaveRouter = $envVars["MASTER_SLAVE_ROUTER"] )
 #set ( $slaveMasterRouter = $envVars["SLAVE_MASTER_ROUTER"] )
@@ -26,22 +26,22 @@ delete from sym_node;
 insert into sym_node_group (node_group_id) values ('${masterGroup}');
 insert into sym_node_group (node_group_id) values ('${slaveGroup}');
 
-insert into sym_node_group_link (source_node_group_id, target_node_group_id, data_event_action) values ('${masterEngine}', '${slaveEngine}', 'W');
-insert into sym_node_group_link (source_node_group_id, target_node_group_id, data_event_action) values ('${slaveEngine}', '${masterEngine}', 'P');
+insert into sym_node_group_link (source_node_group_id, target_node_group_id, data_event_action) values ('${masterGroup}', '${slaveGroup}', 'W');
+insert into sym_node_group_link (source_node_group_id, target_node_group_id, data_event_action) values ('${slaveGroup}', '${masterGroup}', 'P');
 
 insert into sym_router
 (router_id,source_node_group_id,target_node_group_id,router_type,create_time,last_update_time)
-values('${masterSlaveRouter}', '${masterEngine}', '${slaveEngine}', 'default',current_timestamp, current_timestamp);
+values('${masterSlaveRouter}', '${masterGroup}', '${slaveGroup}', 'default',current_timestamp, current_timestamp);
 
 insert into sym_router
 (router_id,source_node_group_id,target_node_group_id,router_type,create_time,last_update_time)
-values('${slaveSlaveRouter}', '${slaveEngine}', '${masterEngine}', 'default',current_timestamp, current_timestamp);
+values('${slaveMasterRouter}', '${slaveGroup}', '${masterGroup}', 'default',current_timestamp, current_timestamp);
 
 
 insert into sym_node (node_id,node_group_id,external_id,sync_enabled,sync_url,schema_version,symmetric_version,database_type,database_version,heartbeat_time,timezone_offset,batch_to_send_count,batch_in_error_count,created_at_node_id)
- values ('${masterId}','${masterEngine}','${masterId}',1,null,null,null,null,null,current_timestamp,null,0,0,'${masterId}');
+ values ('${masterId}','${masterGroup}','${masterId}',1,null,null,null,null,null,current_timestamp,null,0,0,'${masterId}');
 insert into sym_node (node_id,node_group_id,external_id,sync_enabled,sync_url,schema_version,symmetric_version,database_type,database_version,heartbeat_time,timezone_offset,batch_to_send_count,batch_in_error_count,created_at_node_id)
- values ('${slaveId}','${slaveEngine}','${slaveId}',1,null,null,null,null,null,current_timestamp,null,0,0,'${masterId}');
+ values ('${slaveId}','${slaveGroup}','${slaveId}',1,null,null,null,null,null,current_timestamp,null,0,0,'${masterId}');
 
 insert into sym_node_security (node_id,node_password,registration_enabled,registration_time,initial_load_enabled,initial_load_time,created_at_node_id)
  values ('${masterId}','5d1c92bbacbe2edb9e1ca5dbb0e481',0,current_timestamp,0,current_timestamp,'${masterId}');
@@ -75,5 +75,3 @@ insert into sym_trigger_router (trigger_id,router_id,initial_load_order, initial
 
 -- update sym_channel set processing_order = 90 where channel_id = 'dicman_node';
 -- update sym_trigger_router set initial_load_order = 90 where trigger_id = 'dicman_node';
-
-
